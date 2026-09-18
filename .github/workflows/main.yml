@@ -19,9 +19,11 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
+        working-directory: fitness-dashboard/sync
         run: npm install
 
       - name: Run sync
+        working-directory: fitness-dashboard/sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
