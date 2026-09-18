@@ -1,7 +1,7 @@
-// Public, client-side config. The anon key is safe to expose in a deployed
-// site -- Supabase Row Level Security (see supabase/schema.sql) decides what
-// it's allowed to read/write. Never put the service_role key here.
+// Public, client-side config.
+// This is the Supabase anon key; access is controlled by Row Level Security.
+
 window.SUPABASE_CONFIG = {
-  url: "https://YOUR-PROJECT.supabase.co",
-  anonKey: "your-anon-key",
+  url: "https://nyfgffkaewhjhnzdhiim.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmdmZmthZXdoamhuemRoaWltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MzQxMzMsImV4cCI6MjEwNTMxMDEzM30.QaS22MNtmZxnGNVmM3qvCpUsgVOjPyWEnAgu8BslVyI",
 };
