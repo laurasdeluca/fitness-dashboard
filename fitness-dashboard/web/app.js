@@ -109,18 +109,59 @@ async function loadTrainingLoad() {
 }
 
 async function loadActivities() {
-  const {data,error}=await db.from("activities").select("*").order("start_time",{ascending:false}).limit(15);
-  const list=$("activity-list"); list.innerHTML="";
-  if(error){list.innerHTML=`<li class="empty-state">Couldn't load activities: ${safe(error.message)}</li>`;return;}
-  if(!data?.length){list.innerHTML='<li class="empty-state">No activities synced yet.</li>';return;}
-  for(const a of data){
-    const li=document.createElement("li");
-    const isLyfta=a.source==="lyfta";
-    li.className=isLyfta?"clickable":"";
-    const sourceLabel=isLyfta?"Strength":(a.raw?.source==="strava"?"Strava":"Intervals");
-    const detail=isLyfta&&a.load?fmtWeight(a.load):(a.distance_m?(`${(Number(a.distance_m)/1609.344).toFixed(1)} mi`):fmtDuration(a.duration_s));
-    li.innerHTML=`<span class="item-name">${safe(a.name||"Activity")} <span class="item-sport">${sourceLabel}</span></span><span class="item-date">${safe(fmtDate(a.start_time))}${detail?" · "+safe(detail):""}</span>`;
-    if(isLyfta) li.addEventListener("click",()=>openLyfta(a));
+  const { data, error } = await db.from("activities")
+    .select("*")
+    .order("start_time", { ascending: false })
+    .limit(15);
+
+  const list = $("activity-list");
+  list.innerHTML = "";
+  if (error) {
+    list.innerHTML = `<li class="empty-state">Couldn't load activities: ${safe(error.message)}</li>`;
+    return;
+  }
+  if (!data?.length) {
+    list.innerHTML = '<li class="empty-state">No activities synced yet.</li>';
+    return;
+  }
+
+  for (const a of data) {
+    const li = document.createElement("li");
+    const isLyfta = a.source === "lyfta";
+    const raw = a.raw || {};
+
+    let sourceLabel = isLyfta ? "Strength" : "Intervals";
+    const rawSource = String(raw.source || raw.provider || raw.device || "").toLowerCase();
+    if (!isLyfta && rawSource.includes("strava")) sourceLabel = "Strava";
+    else if (!isLyfta && (rawSource.includes("garmin") || raw.device_name || raw.garmin_activity_id)) sourceLabel = "Garmin";
+
+    let detail = "";
+    if (isLyfta && a.load != null) {
+      detail = fmtWeight(a.load);
+    } else {
+      const distance = Number(a.distance_m);
+      if (Number.isFinite(distance) && distance > 0) {
+        detail = `${(distance / 1609.344).toFixed(1)} mi`;
+      }
+      const duration = Number(a.duration_s);
+      if (Number.isFinite(duration) && duration > 0) {
+        detail += detail ? ` · ${fmtDuration(duration)}` : fmtDuration(duration);
+      }
+    }
+
+    const displayName = a.name && a.name !== "Activity"
+      ? a.name
+      : raw.name || raw.activity_name || raw.title || sourceLabel;
+
+    li.className = isLyfta ? "clickable" : "";
+    li.innerHTML = `
+      <span class="item-name">${safe(displayName)}
+        <span class="item-sport">${safe(sourceLabel)}</span>
+      </span>
+      <span class="item-date">${safe(fmtDate(a.start_time))}${detail ? " · " + safe(detail) : ""}</span>
+    `;
+
+    if (isLyfta) li.addEventListener("click", () => openLyfta(a));
     list.appendChild(li);
   }
 }
