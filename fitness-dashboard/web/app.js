@@ -126,81 +126,68 @@ async function loadActivities() {
   }
 
   const sourceWords = new Set(["strava", "garmin", "activity", "intervals", "intervals_icu"]);
+  const clean = (v) => v == null ? "" : String(v).trim();
+
+  const getSource = (a, raw) => {
+    if (a.source === "lyfta") return "Strength";
+    const s = [
+      raw.source, raw.provider, raw.device, raw.device_name,
+      raw.external_source, raw.file_source
+    ].map(clean).join(" ").toLowerCase();
+    if (s.includes("strava")) return "Strava";
+    if (s.includes("garmin")) return "Garmin";
+    return "";
+  };
+
+  const getSport = (a, raw) => {
+    const v = clean(a.sport || raw.type || raw.sport_type || raw.activity_type || raw.sport).toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const map = {
+      run:"Run",running:"Run",
+      ride:"Ride",cycling:"Ride",virtualride:"Ride",indoorcycling:"Ride",
+      swim:"Swim",swimming:"Swim",
+      walk:"Walk",walking:"Walk",
+      hike:"Hike",hiking:"Hike",
+      strength:"Strength",weighttraining:"Strength",
+      yoga:"Yoga",row:"Row",rowing:"Row",
+      elliptical:"Elliptical"
+    };
+    return map[v] || "";
+  };
+
+  const getName = (a, raw, sport) => {
+    const candidates = [a.name, raw.name, raw.activity_name, raw.title, raw.sport_name];
+    for (const candidate of candidates) {
+      const v = clean(candidate);
+      if (v && !sourceWords.has(v.toLowerCase())) return v;
+    }
+    return sport || "Activity";
+  };
 
   for (const a of data) {
     const li = document.createElement("li");
     const isLyfta = a.source === "lyfta";
     const raw = a.raw || {};
-
-    const rawSource = String(
-      raw.source || raw.provider || raw.device || raw.device_name || ""
-    ).toLowerCase();
-
-    let sourceLabel = isLyfta ? "Strength" : "Intervals";
-    if (!isLyfta && rawSource.includes("strava")) sourceLabel = "Strava";
-    else if (!isLyfta && rawSource.includes("garmin")) sourceLabel = "Garmin";
-
-    const sportRaw = String(
-      a.sport || raw.type || raw.sport_type || raw.activity_type || ""
-    ).toLowerCase().replace(/[^a-z0-9]/g, "");
-
-    const sportMap = {
-      run: "Run", running: "Run",
-      ride: "Ride", cycling: "Ride", virtualride: "Ride", indoorcycling: "Ride",
-      swim: "Swim", swimming: "Swim",
-      walk: "Walk", walking: "Walk",
-      hike: "Hike", hiking: "Hike",
-      strength: "Strength", weighttraining: "Strength",
-      yoga: "Yoga",
-      soccer: "Soccer", football: "Football",
-      row: "Row", rowing: "Row",
-      elliptical: "Elliptical"
-    };
-
-    const sportLabel = sportMap[sportRaw] || (
-      sportRaw
-        ? sportRaw.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/\b\w/g, x => x.toUpperCase())
-        : ""
-    );
-
-    const nameCandidates = [
-      a.name,
-      raw.name,
-      raw.activity_name,
-      raw.title
-    ];
-
-    const rawName = nameCandidates.find(v => {
-      if (!v) return false;
-      const value = String(v).trim();
-      return value && !sourceWords.has(value.toLowerCase());
-    });
-
-    const displayName = isLyfta
-      ? (a.name || "Strength workout")
-      : (rawName || sportLabel || "Activity");
+    const sourceLabel = getSource(a, raw);
+    const sportLabel = isLyfta ? "Strength" : getSport(a, raw);
+    const displayName = isLyfta ? (a.name || "Strength workout") : getName(a, raw, sportLabel);
 
     let detail = "";
     if (isLyfta && a.load != null) {
       detail = fmtWeight(a.load);
     } else {
       const distance = Number(a.distance_m);
-      if (Number.isFinite(distance) && distance > 0) {
-        detail = `${(distance / 1609.344).toFixed(1)} mi`;
-      }
+      if (Number.isFinite(distance) && distance > 0) detail = `${(distance / 1609.344).toFixed(1)} mi`;
       const duration = Number(a.duration_s);
-      if (Number.isFinite(duration) && duration > 0) {
-        detail += detail ? ` · ${fmtDuration(duration)}` : fmtDuration(duration);
-      }
+      if (Number.isFinite(duration) && duration > 0) detail += detail ? ` · ${fmtDuration(duration)}` : fmtDuration(duration);
     }
 
-    const tags = [sportLabel, sourceLabel].filter(Boolean);
-    const uniqueTags = [...new Set(tags)];
+    const tags = [...new Set([sportLabel, sourceLabel].filter(Boolean))];
 
     li.className = isLyfta ? "clickable" : "";
     li.innerHTML = `
       <span class="item-name">${safe(displayName)}
-        <span class="item-sport">${safe(uniqueTags.join(" · "))}</span>
+        ${tags.length ? `<span class="item-sport">${safe(tags.join(" · "))}</span>` : ""}
       </span>
       <span class="item-date">${safe(fmtDate(a.start_time))}${detail ? " · " + safe(detail) : ""}</span>
     `;
