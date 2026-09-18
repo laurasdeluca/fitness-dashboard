@@ -124,18 +124,20 @@ async function syncLyfta() {
   const workouts = Array.isArray(data) ? data : data.workouts ?? [];
   console.log(`Lyfta: ${workouts.length} workouts`);
 
-  const rows = workouts.map((w) => ({
+  const rows = workouts
+  .map((w) => ({
     source: "lyfta",
     external_id: String(w.id),
     sport: "strength",
     name: w.name || w.title || "Strength workout",
-    start_time: w.performed_at || w.date || w.created_at,
+    start_time: w.performed_at || w.date || w.created_at || null,
     duration_s: w.duration_seconds ?? null,
     distance_m: null,
     load: null,
     calories: w.calories ?? null,
     raw: w,
-  }));
+  }))
+  .filter((row) => row.start_time);
 
   if (rows.length) {
     const { error } = await supabase
