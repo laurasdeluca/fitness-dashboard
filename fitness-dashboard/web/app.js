@@ -45,8 +45,8 @@ async function loadSnapshot() {
     .order("metric_date", {ascending:false}).limit(1);
   if (!metrics?.length) return;
   const m = metrics[0];
-  $("snap-atl").textContent = m.atl_load != null ? Math.round(m.atl_load).toLocaleString() : "–";
-  $("snap-ctl").textContent = m.ctl_load != null ? Math.round(m.ctl_load).toLocaleString() : "–";
+  $("snap-atl").textContent = m.raw?.atl != null ? Number(m.raw.atl).toFixed(1) : "–";
+  $("snap-ctl").textContent = m.raw?.ctl != null ? Number(m.raw.ctl).toFixed(1) : "–";
   const rawWeight = m.raw?.weight;
   const weightLb = lbFromKg(rawWeight);
   $("snap-weight").textContent = weightLb != null ? fmtWeight(weightLb) : "–";
@@ -57,12 +57,12 @@ async function loadSnapshot() {
 
 async function loadTrainingLoad() {
   const { data, error } = await db.from("daily_metrics")
-    .select("metric_date,atl_load,ctl_load")
+    .select("metric_date,atl_load,ctl_load,raw")
     .order("metric_date", {ascending:false}).limit(14);
   const chart = $("load-chart");
   if (error || !data?.length) { chart.innerHTML = '<div class="empty-state">No training-load data yet.</div>'; return; }
   const rows = [...data].reverse();
-  const max = Math.max(1, ...rows.flatMap(r => [Number(r.atl_load) || 0, Number(r.ctl_load) || 0]));
+  const max = Math.max(1, ...rows.flatMap(r => [Number(r.raw?.atl) || 0, Number(r.raw?.ctl) || 0]));
   chart.innerHTML = rows.map(r => {
     const atl = Number(r.atl_load ?? r.atl) || 0;
     const ctl = Number(r.ctl_load ?? r.ctl) || 0;
@@ -72,10 +72,10 @@ async function loadTrainingLoad() {
     </div>`;
   }).join("");
   const latest = data[0], prior = data[1];
-  const atl = Number(latest.atl_load), ctl = Number(latest.ctl_load);
+  const atl = Number(latest.raw?.atl), ctl = Number(latest.raw?.ctl);
   let trend = "";
   if (Number.isFinite(ctl) && prior) {
-    const p = Number(prior.ctl_load);
+    const p = Number(prior.raw?.ctl);
     if (Number.isFinite(p)) trend = `CTL trend: ${ctl > p ? "+" : ""}${(ctl-p).toFixed(1)} since ${fmtDate(prior.metric_date)}`;
   }
   $("load-trend").innerHTML = `<span><i class="legend-dot atl"></i> acute</span><span><i class="legend-dot ctl"></i> chronic</span><span class="trend">${safe(trend)}</span>`;
