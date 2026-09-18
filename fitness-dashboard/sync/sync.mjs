@@ -137,7 +137,9 @@ async function syncIntervalsIcu() {
         .upsert(rows, {
           onConflict: "source,external_id",
         })
-        .select("id,source,external_id,name,start_time");
+        .select(
+          "id,source,external_id,name,start_time"
+        );
 
       if (error) {
         console.error(
@@ -223,7 +225,9 @@ async function syncIntervalsIcu() {
       .upsert(wellRows, {
         onConflict: "source,metric_date",
       })
-      .select("id,source,metric_date,sleep_s,hrv,resting_hr");
+      .select(
+        "id,source,metric_date,sleep_s,hrv,resting_hr"
+      );
 
     if (error) {
       console.error(
@@ -275,7 +279,15 @@ async function syncLyfta() {
     `Lyfta: ${workouts.length} workouts`
   );
 
-  // Keep only workouts with an identifiable date/time.
+  // Diagnostic: show the first workout so we can identify
+  // the actual date/time field returned by Lyfta.
+  if (workouts.length > 0) {
+    console.log(
+      "Lyfta first workout:",
+      JSON.stringify(workouts[0], null, 2)
+    );
+  }
+
   const rows = workouts
     .map((w) => ({
       source: "lyfta",
