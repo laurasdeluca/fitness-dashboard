@@ -90,6 +90,7 @@ async function syncIntervalsIcu() {
           a.type ||
           a.sport_type ||
           a.activity_type ||
+          a.sport ||
           ""
         ).toLowerCase(),
 
@@ -97,6 +98,7 @@ async function syncIntervalsIcu() {
           a.name ||
           a.activity_name ||
           a.title ||
+          a.sport_name ||
           null,
 
         start_time:
