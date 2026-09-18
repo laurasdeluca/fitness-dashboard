@@ -138,13 +138,20 @@ async function loadActivities() {
     if (!isLyfta && rawSource.includes("strava")) sourceLabel = "Strava";
     else if (!isLyfta && rawSource.includes("garmin")) sourceLabel = "Garmin";
 
-    const rawName = [
+    const nameCandidates = [
+      a.name,
       raw.name,
       raw.activity_name,
       raw.title,
-      raw.sport_name,
-      raw.activity_type
-    ].find(v => v && String(v).toLowerCase() !== "strava" && String(v).toLowerCase() !== "activity");
+      raw.sport_name
+    ];
+
+    const sourceWords = new Set(["strava", "garmin", "activity", "intervals", "intervals_icu"]);
+    const rawName = nameCandidates.find(v => {
+      if (!v) return false;
+      const value = String(v).trim();
+      return value && !sourceWords.has(value.toLowerCase());
+    });
 
     const sportRaw = String(
       raw.type || raw.sport_type || raw.activity_type || ""
