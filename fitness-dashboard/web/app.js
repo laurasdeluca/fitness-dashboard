@@ -163,7 +163,7 @@ async function loadActivities() {
 
     const displayName = isLyfta
       ? (a.name || "Strength workout")
-      : (rawName || sportLabel || sourceLabel);
+      : (rawName || sportLabel || "Activity");
 
     let detail = "";
     if (isLyfta && a.load != null) {
