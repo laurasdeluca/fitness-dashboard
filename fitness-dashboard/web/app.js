@@ -125,6 +125,8 @@ async function loadActivities() {
     return;
   }
 
+  const sourceWords = new Set(["strava", "garmin", "activity", "intervals", "intervals_icu"]);
+
   for (const a of data) {
     const li = document.createElement("li");
     const isLyfta = a.source === "lyfta";
@@ -138,35 +140,41 @@ async function loadActivities() {
     if (!isLyfta && rawSource.includes("strava")) sourceLabel = "Strava";
     else if (!isLyfta && rawSource.includes("garmin")) sourceLabel = "Garmin";
 
+    const sportRaw = String(
+      a.sport || raw.type || raw.sport_type || raw.activity_type || ""
+    ).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const sportMap = {
+      run: "Run", running: "Run",
+      ride: "Ride", cycling: "Ride", virtualride: "Ride", indoorcycling: "Ride",
+      swim: "Swim", swimming: "Swim",
+      walk: "Walk", walking: "Walk",
+      hike: "Hike", hiking: "Hike",
+      strength: "Strength", weighttraining: "Strength",
+      yoga: "Yoga",
+      soccer: "Soccer", football: "Football",
+      row: "Row", rowing: "Row",
+      elliptical: "Elliptical"
+    };
+
+    const sportLabel = sportMap[sportRaw] || (
+      sportRaw
+        ? sportRaw.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/\b\w/g, x => x.toUpperCase())
+        : ""
+    );
+
     const nameCandidates = [
       a.name,
       raw.name,
       raw.activity_name,
-      raw.title,
-      raw.sport_name
+      raw.title
     ];
 
-    const sourceWords = new Set(["strava", "garmin", "activity", "intervals", "intervals_icu"]);
     const rawName = nameCandidates.find(v => {
       if (!v) return false;
       const value = String(v).trim();
       return value && !sourceWords.has(value.toLowerCase());
     });
-
-    const sportRaw = String(
-      raw.type || raw.sport_type || raw.activity_type || ""
-    ).toLowerCase();
-
-    const sportMap = {
-      run: "Run", running: "Run",
-      ride: "Ride", cycling: "Ride", virtualride: "Ride",
-      swim: "Swim", swimming: "Swim",
-      walk: "Walk", hiking: "Hike", hike: "Hike",
-      strength: "Strength", weighttraining: "Strength"
-    };
-    const sportLabel = sportMap[sportRaw] || (
-      sportRaw ? sportRaw.replace(/_/g, " ").replace(/\b\w/g, x => x.toUpperCase()) : ""
-    );
 
     const displayName = isLyfta
       ? (a.name || "Strength workout")
@@ -188,6 +196,7 @@ async function loadActivities() {
 
     const tags = [sportLabel, sourceLabel].filter(Boolean);
     const uniqueTags = [...new Set(tags)];
+
     li.className = isLyfta ? "clickable" : "";
     li.innerHTML = `
       <span class="item-name">${safe(displayName)}
