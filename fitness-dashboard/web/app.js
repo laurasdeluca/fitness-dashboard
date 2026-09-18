@@ -57,28 +57,55 @@ async function loadSnapshot() {
 
 async function loadTrainingLoad() {
   const { data, error } = await db.from("daily_metrics")
-    .select("metric_date,atl_load,ctl_load,raw")
-    .order("metric_date", {ascending:false}).limit(14);
+    .select("metric_date,raw")
+    .order("metric_date", { ascending: false })
+    .limit(14);
+
   const chart = $("load-chart");
-  if (error || !data?.length) { chart.innerHTML = '<div class="empty-state">No training-load data yet.</div>'; return; }
-  const rows = [...data].reverse();
-  const max = Math.max(1, ...rows.flatMap(r => [Number(r.raw?.atl) || 0, Number(r.raw?.ctl) || 0]));
+  if (error || !data?.length) {
+    chart.innerHTML = '<div class="empty-state">No training-load data yet.</div>';
+    return;
+  }
+
+  const rows = [...data].reverse().map(r => ({
+    date: r.metric_date,
+    atl: Number(r.raw?.atl),
+    ctl: Number(r.raw?.ctl)
+  })).filter(r => Number.isFinite(r.atl) || Number.isFinite(r.ctl));
+
+  if (!rows.length) {
+    chart.innerHTML = '<div class="empty-state">No ATL/CTL values available.</div>';
+    return;
+  }
+
+  const max = Math.max(1, ...rows.flatMap(r => [r.atl, r.ctl].filter(Number.isFinite)));
   chart.innerHTML = rows.map(r => {
-    const atl = Number(r.atl_load ?? r.atl) || 0;
-    const ctl = Number(r.ctl_load ?? r.ctl) || 0;
-    return `<div class="load-day" title="${safe(fmtDate(r.metric_date))}: ATL ${Math.round(atl)}, CTL ${Math.round(ctl)}">
-      <div class="bars"><span class="bar atl" style="height:${Math.max(2, atl/max*100)}%"></span><span class="bar ctl" style="height:${Math.max(2, ctl/max*100)}%"></span></div>
-      <span class="load-date">${safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))}</span>
+    const atl = Number.isFinite(r.atl) ? r.atl : 0;
+    const ctl = Number.isFinite(r.ctl) ? r.ctl : 0;
+    return `<div class="load-day" title="${safe(fmtDate(r.date))}: ATL ${atl.toFixed(1)}, CTL ${ctl.toFixed(1)}">
+      <div class="bars">
+        <div class="bar-group">
+          <span class="bar atl" style="height:${Math.max(3, atl / max * 100)}%"></span>
+          <small>${atl.toFixed(0)}</small>
+        </div>
+        <div class="bar-group">
+          <span class="bar ctl" style="height:${Math.max(3, ctl / max * 100)}%"></span>
+          <small>${ctl.toFixed(0)}</small>
+        </div>
+      </div>
+      <span class="load-date">${safe(new Date(r.date + "T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))}</span>
     </div>`;
   }).join("");
-  const latest = data[0], prior = data[1];
-  const atl = Number(latest.raw?.atl), ctl = Number(latest.raw?.ctl);
+
+  const latest = rows.at(-1);
+  const prior = rows.length > 1 ? rows.at(-2) : null;
   let trend = "";
-  if (Number.isFinite(ctl) && prior) {
-    const p = Number(prior.raw?.ctl);
-    if (Number.isFinite(p)) trend = `CTL trend: ${ctl > p ? "+" : ""}${(ctl-p).toFixed(1)} since ${fmtDate(prior.metric_date)}`;
+  if (prior && Number.isFinite(latest.ctl) && Number.isFinite(prior.ctl)) {
+    const delta = latest.ctl - prior.ctl;
+    trend = `CTL trend: ${delta > 0 ? "+" : ""}${delta.toFixed(1)} since ${fmtDate(prior.date)}`;
   }
-  $("load-trend").innerHTML = `<span><i class="legend-dot atl"></i> acute</span><span><i class="legend-dot ctl"></i> chronic</span><span class="trend">${safe(trend)}</span>`;
+  $("load-trend").innerHTML =
+    `<span><i class="legend-dot atl"></i> acute</span><span><i class="legend-dot ctl"></i> chronic</span><span class="trend">${safe(trend)}</span>`;
 }
 
 async function loadActivities() {
