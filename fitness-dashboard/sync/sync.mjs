@@ -80,6 +80,25 @@ async function syncIntervalsIcu() {
       `intervals.icu: ${activities.length} activities`
     );
 
+    if (activities.length) {
+      const sample = activities[0];
+      console.log("Intervals activity sample fields:", JSON.stringify({
+        id: sample.id,
+        type: sample.type,
+        sport: sample.sport,
+        sport_type: sample.sport_type,
+        activity_type: sample.activity_type,
+        name: sample.name,
+        activity_name: sample.activity_name,
+        title: sample.title,
+        sport_name: sample.sport_name,
+        source: sample.source,
+        provider: sample.provider,
+        device: sample.device,
+        device_name: sample.device_name
+      }));
+    }
+
     const rows = activities
       .map((a) => ({
         source: "intervals_icu",
