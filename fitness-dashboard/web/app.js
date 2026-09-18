@@ -130,10 +130,40 @@ async function loadActivities() {
     const isLyfta = a.source === "lyfta";
     const raw = a.raw || {};
 
+    const rawSource = String(
+      raw.source || raw.provider || raw.device || raw.device_name || ""
+    ).toLowerCase();
+
     let sourceLabel = isLyfta ? "Strength" : "Intervals";
-    const rawSource = String(raw.source || raw.provider || raw.device || "").toLowerCase();
     if (!isLyfta && rawSource.includes("strava")) sourceLabel = "Strava";
-    else if (!isLyfta && (rawSource.includes("garmin") || raw.device_name || raw.garmin_activity_id)) sourceLabel = "Garmin";
+    else if (!isLyfta && rawSource.includes("garmin")) sourceLabel = "Garmin";
+
+    const rawName = [
+      raw.name,
+      raw.activity_name,
+      raw.title,
+      raw.sport_name,
+      raw.activity_type
+    ].find(v => v && String(v).toLowerCase() !== "strava" && String(v).toLowerCase() !== "activity");
+
+    const sportRaw = String(
+      raw.type || raw.sport_type || raw.activity_type || ""
+    ).toLowerCase();
+
+    const sportMap = {
+      run: "Run", running: "Run",
+      ride: "Ride", cycling: "Ride", virtualride: "Ride",
+      swim: "Swim", swimming: "Swim",
+      walk: "Walk", hiking: "Hike", hike: "Hike",
+      strength: "Strength", weighttraining: "Strength"
+    };
+    const sportLabel = sportMap[sportRaw] || (
+      sportRaw ? sportRaw.replace(/_/g, " ").replace(/\b\w/g, x => x.toUpperCase()) : ""
+    );
+
+    const displayName = isLyfta
+      ? (a.name || "Strength workout")
+      : (rawName || sportLabel || sourceLabel);
 
     let detail = "";
     if (isLyfta && a.load != null) {
@@ -149,14 +179,12 @@ async function loadActivities() {
       }
     }
 
-    const displayName = a.name && a.name !== "Activity"
-      ? a.name
-      : raw.name || raw.activity_name || raw.title || sourceLabel;
-
+    const tags = [sportLabel, sourceLabel].filter(Boolean);
+    const uniqueTags = [...new Set(tags)];
     li.className = isLyfta ? "clickable" : "";
     li.innerHTML = `
       <span class="item-name">${safe(displayName)}
-        <span class="item-sport">${safe(sourceLabel)}</span>
+        <span class="item-sport">${safe(uniqueTags.join(" · "))}</span>
       </span>
       <span class="item-date">${safe(fmtDate(a.start_time))}${detail ? " · " + safe(detail) : ""}</span>
     `;
