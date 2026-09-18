@@ -1,0 +1,16 @@
+{
+  "name": "fitness-dashboard-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Scheduled job that pulls intervals.icu + Lyfta data into Supabase",
+  "scripts": {
+    "sync": "node sync.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
