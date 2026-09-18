@@ -279,15 +279,6 @@ async function syncLyfta() {
     `Lyfta: ${workouts.length} workouts`
   );
 
-  // Diagnostic: show the first workout so we can identify
-  // the actual date/time field returned by Lyfta.
-  if (workouts.length > 0) {
-    console.log(
-      "Lyfta first workout:",
-      JSON.stringify(workouts[0], null, 2)
-    );
-  }
-
   const rows = workouts
     .map((w) => ({
       source: "lyfta",
@@ -297,18 +288,13 @@ async function syncLyfta() {
       sport: "strength",
 
       name:
-        w.name ||
         w.title ||
+        w.name ||
         "Strength workout",
 
+      // Lyfta's actual workout date field
       start_time:
-        w.performed_at ||
-        w.performedAt ||
-        w.date ||
-        w.workout_date ||
-        w.workoutDate ||
-        w.created_at ||
-        w.createdAt ||
+        w.workout_perform_date ||
         null,
 
       duration_s:
@@ -319,9 +305,11 @@ async function syncLyfta() {
 
       distance_m: null,
 
+      // Lyfta reports total lifted volume.
+      // We store it in the existing load column for now.
       load:
-        w.load ??
-        w.training_load ??
+        w.total_volume ??
+        w.totalLiftedWeight ??
         null,
 
       calories:
@@ -351,7 +339,7 @@ async function syncLyfta() {
         onConflict: "source,external_id",
       })
       .select(
-        "id,source,external_id,name,start_time"
+        "id,source,external_id,name,start_time,load"
       );
 
     if (error) {
@@ -366,12 +354,10 @@ async function syncLyfta() {
       `Lyfta: successfully upserted ${inserted?.length ?? 0} rows`
     );
 
-    if (inserted?.length) {
-      console.log(
-        "Lyfta sample:",
-        inserted.slice(0, 2)
-      );
-    }
+    console.log(
+      "Lyfta sample:",
+      inserted?.slice(0, 2) ?? []
+    );
   }
 }
 
