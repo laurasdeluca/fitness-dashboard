@@ -83,6 +83,7 @@ async function syncIntervalsIcu() {
     const rows = activities
       .map((a) => ({
         source: "intervals_icu",
+
         external_id: String(a.id),
 
         sport: (
@@ -188,26 +189,41 @@ async function syncIntervalsIcu() {
         w.day ||
         null,
 
+      // These remain null because the current
+      // intervals.icu response is returning null
+      // for sleepSecs.
       sleep_s:
         w.sleepSecs ??
         w.sleep_seconds ??
         w.sleep ??
         null,
 
+      // Current API response is returning null for HRV.
       hrv:
         w.hrv ??
         w.hrvMs ??
         w.hrv_ms ??
         null,
 
+      // Current API response is returning null
+      // for resting HR.
       resting_hr:
         w.restingHR ??
         w.resting_hr ??
         w.restingHeartRate ??
         null,
 
+      // Do NOT use ctlLoad as readiness.
       readiness:
         w.readiness ??
+        null,
+
+      // Actual Intervals.icu training-load fields.
+      atl_load:
+        w.atlLoad ??
+        null,
+
+      ctl_load:
         w.ctlLoad ??
         null,
 
@@ -226,7 +242,7 @@ async function syncIntervalsIcu() {
         onConflict: "source,metric_date",
       })
       .select(
-        "id,source,metric_date,sleep_s,hrv,resting_hr"
+        "id,source,metric_date,sleep_s,hrv,resting_hr,readiness,atl_load,ctl_load"
       );
 
     if (error) {
@@ -292,7 +308,7 @@ async function syncLyfta() {
         w.name ||
         "Strength workout",
 
-      // Lyfta's actual workout date field
+      // This is Lyfta's actual workout date field.
       start_time:
         w.workout_perform_date ||
         null,
@@ -305,8 +321,7 @@ async function syncLyfta() {
 
       distance_m: null,
 
-      // Lyfta reports total lifted volume.
-      // We store it in the existing load column for now.
+      // Total lifted weight / workout volume.
       load:
         w.total_volume ??
         w.totalLiftedWeight ??
