@@ -66,10 +66,6 @@ async function loadSnapshot() {
   $("snap-sleep").textContent = sleep ? fmtDuration(sleep.sleep_s) : "not synced";
   $("snap-hrv").textContent = hrv ? Math.round(hrv.hrv) : "not synced";
   $("snap-rhr").textContent = rhr ? Math.round(rhr.resting_hr) : "not synced";
-  const nutrition = latestWith("calories_in");
-  $("snap-cal-in").textContent = nutrition ? Math.round(nutrition.calories_in).toLocaleString() : "not synced";
-  const expenditure = latestWith("calories_out");
-  $("snap-cal-out").textContent = expenditure ? Math.round(expenditure.calories_out).toLocaleString() : "activity only";
 }
 
 async function loadRecoveryTrend() {
@@ -357,7 +353,7 @@ $("add-plan").addEventListener("click",async()=>{
 
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadTrainingInsights(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
