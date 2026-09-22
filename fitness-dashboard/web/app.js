@@ -68,6 +68,18 @@ async function loadSnapshot() {
   $("snap-rhr").textContent = rhr ? Math.round(rhr.resting_hr) : "not synced";
 }
 
+async function loadSteps(){
+  const dates=last7Dates();
+  const {data}=await db.from("daily_metrics").select("metric_date,raw").gte("metric_date",dates[0]).lte("metric_date",dates.at(-1)).order("metric_date",{ascending:true});
+  const rows=(data||[]).map(r=>({date:r.metric_date,steps:Number(r.raw?.steps)})).filter(r=>Number.isFinite(r.steps)&&r.steps>=0);
+  if(!rows.length)return;
+  const avg=rows.reduce((s,r)=>s+r.steps,0)/rows.length;
+  const today=rows.find(r=>r.date===dates.at(-1));
+  $("steps-week").textContent=Math.round(avg).toLocaleString();
+  $("steps-today").textContent=today?Math.round(today.steps).toLocaleString():"–";
+  if(today){const delta=Math.round(today.steps-avg);$("steps-delta").textContent=(delta>0?"+":"")+delta.toLocaleString();}
+}
+
 async function loadRecoveryTrend() {
   const { data, error } = await db.from("daily_metrics")
     .select("metric_date,sleep_s,hrv,resting_hr,raw")
@@ -353,7 +365,7 @@ $("add-plan").addEventListener("click",async()=>{
 
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadSteps(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
