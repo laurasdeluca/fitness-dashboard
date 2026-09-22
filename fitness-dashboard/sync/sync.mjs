@@ -207,6 +207,22 @@ async function syncIntervalsIcu() {
     );
     console.log("Wellness sample keys:", JSON.stringify(Object.keys(sample)));
     console.log("Wellness sample non-null fields:", JSON.stringify(nonNull));
+
+    console.log(
+      "Wellness recovery fields by date:",
+      JSON.stringify(
+        wellness.map((w) => ({
+          date: w.id || w.date || w.day,
+          sleepSecs: w.sleepSecs ?? null,
+          sleepScore: w.sleepScore ?? null,
+          hrv: w.hrv ?? null,
+          hrvSDNN: w.hrvSDNN ?? null,
+          restingHR: w.restingHR ?? null,
+          avgSleepingHR: w.avgSleepingHR ?? null,
+          readiness: w.readiness ?? null
+        }))
+      )
+    );
   }
 
   const wellRows = wellness
