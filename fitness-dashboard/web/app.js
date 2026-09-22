@@ -42,17 +42,30 @@ async function loadSnapshot() {
 
   const { data: metrics } = await db.from("daily_metrics")
     .select("metric_date,sleep_s,hrv,resting_hr,readiness,atl_load,ctl_load,raw")
-    .order("metric_date", {ascending:false}).limit(1);
+    .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
+
+  // Training load/weight should use the newest wellness row.
   const m = metrics[0];
   $("snap-atl").textContent = m.raw?.atl != null ? Number(m.raw.atl).toFixed(1) : "–";
   $("snap-ctl").textContent = m.raw?.ctl != null ? Number(m.raw.ctl).toFixed(1) : "–";
   const rawWeight = m.raw?.weight;
   const weightLb = lbFromKg(rawWeight);
   $("snap-weight").textContent = weightLb != null ? fmtWeight(weightLb) : "–";
-  $("snap-sleep").textContent = m.sleep_s ? fmtDuration(m.sleep_s) : "not synced";
-  $("snap-hrv").textContent = m.hrv != null ? Math.round(m.hrv) : "not synced";
-  $("snap-rhr").textContent = m.resting_hr != null ? Math.round(m.resting_hr) : "not synced";
+
+  // Garmin recovery data can arrive a day or two behind the wellness row.
+  // Use the most recent actual value for each metric instead of today's empty row.
+  const latestWith = (field) => metrics.find(row =>
+    row[field] !== null && row[field] !== undefined && row[field] !== ""
+  );
+
+  const sleep = latestWith("sleep_s");
+  const hrv = latestWith("hrv");
+  const rhr = latestWith("resting_hr");
+
+  $("snap-sleep").textContent = sleep ? fmtDuration(sleep.sleep_s) : "not synced";
+  $("snap-hrv").textContent = hrv ? Math.round(hrv.hrv) : "not synced";
+  $("snap-rhr").textContent = rhr ? Math.round(rhr.resting_hr) : "not synced";
 }
 
 async function loadTrainingLoad() {
