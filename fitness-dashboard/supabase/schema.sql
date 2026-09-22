@@ -105,3 +105,10 @@ create policy "public write planned_workouts" on planned_workouts for all using 
 create policy "public insert habits" on habits for insert with check (true);
 create policy "public update habits" on habits for update using (true) with check (true);
 create policy "public delete habits" on habits for delete using (true);
+
+
+-- Browser nutrition import (single-user personal app).
+drop policy if exists "public insert daily_metrics" on daily_metrics;
+drop policy if exists "public update daily_metrics" on daily_metrics;
+create policy "public insert daily_metrics" on daily_metrics for insert with check (true);
+create policy "public update daily_metrics" on daily_metrics for update using (true) with check (true);
