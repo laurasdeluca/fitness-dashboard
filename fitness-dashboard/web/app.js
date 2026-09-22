@@ -41,7 +41,7 @@ async function loadSnapshot() {
   $("snap-load").textContent = total ? Math.round(total).toLocaleString() : "–";
 
   const { data: metrics } = await db.from("daily_metrics")
-    .select("metric_date,sleep_s,hrv,resting_hr,readiness,calories_in,calories_out,protein_g,carbs_g,fat_g,raw")
+    .select("metric_date,sleep_s,hrv,resting_hr,readiness,raw")
     .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
 
@@ -113,7 +113,7 @@ async function loadTrainingInsights() {
   const volumeBars=weeks.map(w=>{const total=w.Strength+w.Run+w.Ride+w.Walk;const label=w.s.toLocaleDateString(undefined,{month:"numeric",day:"numeric"});return '<div class="ins-week" title="'+safe(label)+': '+total+' sessions"><div class="ins-group"><span class="ins-strength" style="height:'+(w.Strength/maxTotal*100)+'%" title="Strength: '+w.Strength+'"></span><span class="ins-run" style="height:'+(w.Run/maxTotal*100)+'%" title="Run: '+w.Run+'"></span><span class="ins-ride" style="height:'+(w.Ride/maxTotal*100)+'%" title="Ride: '+w.Ride+'"></span><span class="ins-walk" style="height:'+(w.Walk/maxTotal*100)+'%" title="Walk: '+w.Walk+'"></span></div><small>'+safe(label)+'</small></div>';}).join("");
   const heatHtml=heat.map((weekdays,d)=>'<div class="heat-row">'+weekdays.map((n,w)=>'<span class="heat-cell" style="opacity:'+(n?(.25+.75*n/maxDay):.12)+'" title="'+safe(weeks[w].s.toLocaleDateString(undefined,{month:"short",day:"numeric"}))+' · '+n+' session'+(n===1?'':'s')+'">'+(n||"")+'</span>').join("")+'</div>').join("");
   const dist=current.distance>0 ? (current.distance/1609.344).toFixed(1)+" mi logged" : "";
-  el.innerHTML='<div class="ins-legend"><span>Strength</span><span>Run</span><span>Ride</span><span>Walk</span></div>'<div class="ins-volume">'+volumeBars+'</div><div class="ins-statline"><strong>'+current.Strength+'</strong> lifting · <strong>'+current.Run+'</strong> runs · <strong>'+current.Ride+'</strong> rides · <strong>'+current.Walk+'</strong> walks · '+(current.minutes?Math.round(current.minutes/60)+'h total':(current.Strength+current.Run+current.Ride+current.Walk)+' sessions')+(dist?' · '+dist:"")+'</div><div class="ins-compare">vs last week: '+(pct(current.Strength,prev.Strength)===null?'':pct(current.Strength,prev.Strength)+'% lifting, ') +(pct(current.Run,prev.Run)===null?'':pct(current.Run,prev.Run)+'% running, ') +(pct(current.Ride,prev.Ride)===null?'':pct(current.Ride,prev.Ride)+'% riding')+'</div><div class="heat-title">Training density · 12 weeks</div><div class="heatmap">'+heatHtml+'</div>';
+  el.innerHTML='<div class="ins-legend"><span>Strength</span><span>Run</span><span>Ride</span><span>Walk</span></div><div class="ins-volume">'+volumeBars+'</div><div class="ins-statline"><strong>'+current.Strength+'</strong> lifting · <strong>'+current.Run+'</strong> runs · <strong>'+current.Ride+'</strong> rides · <strong>'+current.Walk+'</strong> walks · '+(current.minutes?Math.round(current.minutes/60)+'h total':(current.Strength+current.Run+current.Ride+current.Walk)+' sessions')+(dist?' · '+dist:"")+'</div><div class="ins-compare">vs last week: '+(pct(current.Strength,prev.Strength)===null?'':pct(current.Strength,prev.Strength)+'% lifting, ') +(pct(current.Run,prev.Run)===null?'':pct(current.Run,prev.Run)+'% running, ') +(pct(current.Ride,prev.Ride)===null?'':pct(current.Ride,prev.Ride)+'% riding')+'</div><div class="heat-title">Training density · 12 weeks</div><div class="heatmap">'+heatHtml+'</div>';
 }
 
 async function loadNutrition() {
