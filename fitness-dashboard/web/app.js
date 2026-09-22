@@ -363,9 +363,49 @@ $("add-plan").addEventListener("click",async()=>{
   await db.from("planned_workouts").insert({title,plan_date,sport}); loadPlan();
 });
 
+async function loadTrainingSummary(){
+  const end=new Date();
+  const start28=new Date(end); start28.setDate(start28.getDate()-27);
+  const start7=new Date(end); start7.setDate(start7.getDate()-6);
+  const iso=d=>d.toISOString();
+  const {data}=await db.from("activities")
+    .select("source,sport,start_time,duration_s,distance_m,load,raw")
+    .gte("start_time",iso(start28))
+    .lte("start_time",iso(end))
+    .order("start_time",{ascending:true});
+  const rows=(data||[]).filter(a=>a.start_time);
+  const classify=a=>{
+    const raw=a.raw||{};
+    const v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    if(a.source==="lyfta"||/strength|weight|lifting|gym|resistance/.test(v))return"Strength";
+    if(/run|running/.test(v))return"Run";
+    if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v))return"Ride";
+    if(/walk|walking/.test(v))return"Walk";
+    return null;
+  };
+  const typed=rows.map(a=>({...a,type:classify(a)})).filter(a=>a.type);
+  const recent7=typed.filter(a=>new Date(a.start_time)>=start7);
+  const dates=new Set(typed.map(a=>new Date(a.start_time).toISOString().slice(0,10)));
+  let streak=0;
+  for(let d=new Date(end);;d.setDate(d.getDate()-1)){
+    if(dates.has(d.toISOString().slice(0,10))) streak++; else break;
+  }
+  $("consistency-days").textContent=dates.size;
+  $("consistency-sessions").textContent=typed.length;
+  $("consistency-rest").textContent=Math.max(0,28-dates.size);
+  $("consistency-streak").textContent=streak;
+  const strength=recent7.filter(a=>a.type==="Strength");
+  $("strength-frequency").textContent=strength.length;
+  const volume=strength.reduce((sum,a)=>sum+(Number(a.load)||0),0);
+  $("strength-volume").textContent=volume?Math.round(volume).toLocaleString():"–";
+  const miles=type=>recent7.filter(a=>a.type===type).reduce((sum,a)=>sum+(Number(a.distance_m)||0),0)/1609.344;
+  $("run-mileage").textContent=miles("Run")?miles("Run").toFixed(1):"0";
+  $("ride-mileage").textContent=miles("Ride")?miles("Ride").toFixed(1):"0";
+  $("walk-mileage").textContent=miles("Walk")?miles("Walk").toFixed(1):"0";
+}
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadSteps(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadSteps(),loadTrainingSummary(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
