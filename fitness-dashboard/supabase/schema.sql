@@ -27,6 +27,7 @@ create table if not exists daily_metrics (
   source       text not null,              -- 'intervals_icu' | 'macrofactor'
   metric_date  date not null,
   calories_in  numeric,
+  calories_out numeric,                    -- MacroFactor estimated expenditure
   protein_g    numeric,
   carbs_g      numeric,
   fat_g        numeric,
@@ -97,3 +98,10 @@ create policy "public read" on planned_workouts for select using (true);
 create policy "public write habit_logs" on habit_logs for insert with check (true);
 create policy "public delete habit_logs" on habit_logs for delete using (true);
 create policy "public write planned_workouts" on planned_workouts for all using (true) with check (true);
+
+
+-- The browser needs insert/update/delete access for the personal habit tracker.
+-- (The original schema only granted read access, so "+add habit+" silently failed.)
+create policy "public insert habits" on habits for insert with check (true);
+create policy "public update habits" on habits for update using (true) with check (true);
+create policy "public delete habits" on habits for delete using (true);
