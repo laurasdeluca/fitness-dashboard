@@ -200,6 +200,15 @@ async function syncIntervalsIcu() {
     `intervals.icu: ${wellness.length} wellness days`
   );
 
+  if (wellness.length) {
+    const sample = wellness[wellness.length - 1];
+    const nonNull = Object.fromEntries(
+      Object.entries(sample).filter(([, value]) => value !== null && value !== undefined && value !== "")
+    );
+    console.log("Wellness sample keys:", JSON.stringify(Object.keys(sample)));
+    console.log("Wellness sample non-null fields:", JSON.stringify(nonNull));
+  }
+
   const wellRows = wellness
     .map((w) => ({
       source: "intervals_icu",
