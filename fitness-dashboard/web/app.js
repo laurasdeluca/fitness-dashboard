@@ -41,7 +41,7 @@ async function loadSnapshot() {
   $("snap-load").textContent = total ? Math.round(total).toLocaleString() : "–";
 
   const { data: metrics } = await db.from("daily_metrics")
-    .select("metric_date,sleep_s,hrv,resting_hr,readiness,atl_load,ctl_load,calories_in,calories_out,protein_g,carbs_g,fat_g,raw")
+    .select("metric_date,sleep_s,hrv,resting_hr,readiness,calories_in,calories_out,protein_g,carbs_g,fat_g,raw")
     .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
 
@@ -96,15 +96,12 @@ async function loadRecoveryTrend() {
     return '<div class="recovery-day"><div class="recovery-bars"><span class="recovery-bar sleep" style="height:'+Math.max(3,daySleep/maxSleep*100)+'%" title="'+safe(fmtDuration(daySleep))+' sleep"></span></div><div class="recovery-meta"><span>'+safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))+'</span><span>HRV '+(dayHrv?Math.round(dayHrv):"–")+'</span><span>RHR '+(dayRhr?Math.round(dayRhr):"–")+'</span></div></div>';
   }).join("") : '<div class="empty-state">No sleep data yet.</div>';
 
-  $("recovery-sleep").textContent=sleep ? fmtDuration(sleep) : "not synced";
-  $("recovery-hrv").textContent=hrv ? Math.round(hrv) : "not synced";
-  $("recovery-rhr").textContent=rhr ? Math.round(rhr) : "not synced";
 }
 async function loadTrainingInsights() {
   const since=new Date(Date.now()-84*86400000).toISOString();
   const {data,error}=await db.from("activities").select("sport,name,start_time,duration_s,distance_m,load,raw,source").gte("start_time",since).order("start_time",{ascending:true});
   const el=$("training-insights");
-  if(error){el.innerHTML='<div class="empty-state">Couldn\\'t load training insights.</div>';return;}
+  if(error){el.innerHTML="<div class=\"empty-state\">Couldn't load training insights.</div>";return;}
   const classify=a=>{const raw=a.raw||{},v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(a.source==="lyfta"||/strength|weight|lifting|gym|resistance/.test(v))return"Strength";if(/run|running/.test(v))return"Run";if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v))return"Ride";if(/walk|walking/.test(v))return"Walk";return null;};
   const rows=(data||[]).map(a=>({...a,type:classify(a)})).filter(a=>a.type);
   const today=new Date(); today.setHours(0,0,0,0);
