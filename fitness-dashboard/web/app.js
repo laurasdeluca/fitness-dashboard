@@ -41,7 +41,7 @@ async function loadSnapshot() {
   $("snap-load").textContent = total ? Math.round(total).toLocaleString() : "–";
 
   const { data: metrics } = await db.from("daily_metrics")
-    .select("metric_date,sleep_s,hrv,resting_hr,readiness,atl_load,ctl_load,raw")
+    .select("metric_date,sleep_s,hrv,resting_hr,readiness,atl_load,ctl_load,calories_in,calories_out,protein_g,carbs_g,fat_g,raw")
     .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
 
@@ -66,6 +66,49 @@ async function loadSnapshot() {
   $("snap-sleep").textContent = sleep ? fmtDuration(sleep.sleep_s) : "not synced";
   $("snap-hrv").textContent = hrv ? Math.round(hrv.hrv) : "not synced";
   $("snap-rhr").textContent = rhr ? Math.round(rhr.resting_hr) : "not synced";
+  const nutrition = latestWith("calories_in");
+  $("snap-cal-in").textContent = nutrition ? Math.round(nutrition.calories_in).toLocaleString() : "not synced";
+  const expenditure = latestWith("calories_out");
+  $("snap-cal-out").textContent = expenditure ? Math.round(expenditure.calories_out).toLocaleString() : "activity only";
+}
+
+async function loadRecoveryTrend() {
+  const { data, error } = await db.from("daily_metrics")
+    .select("metric_date,sleep_s,hrv,resting_hr,raw")
+    .order("metric_date",{ascending:false}).limit(7);
+  const chart=$("recovery-chart");
+  if(error || !data?.length){ chart.innerHTML='<div class="empty-state">No recovery data yet.</div>'; return; }
+  const rows=[...data].reverse();
+  const maxSleep=Math.max(1,...rows.map(r=>Number(r.sleep_s)||0));
+  chart.innerHTML=rows.map(r=>{
+    const sleep=Number(r.sleep_s)||0, hrv=Number(r.hrv)||0, rhr=Number(r.resting_hr)||0;
+    return '<div class="recovery-day"><div class="recovery-bars"><span class="recovery-bar sleep" style="height:'+Math.max(3,sleep/maxSleep*100)+'%" title="'+safe(fmtDuration(sleep))+' sleep"></span></div><div class="recovery-meta"><span>'+safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))+'</span><span>HRV '+(hrv?Math.round(hrv):"–")+'</span><span>RHR '+(rhr?Math.round(rhr):"–")+'</span></div></div>';
+  }).join("");
+}
+
+async function loadNutrition() {
+  const dates=last7Dates();
+  const {data:metrics,error}=await db.from("daily_metrics").select("metric_date,calories_in,calories_out,protein_g,carbs_g,fat_g").gte("metric_date",dates[0]).order("metric_date",{ascending:true});
+  const {data:activities}=await db.from("activities").select("start_time,calories").gte("start_time",dates[0]+"T00:00:00");
+  const chart=$("nutrition-chart");
+  if(error){chart.innerHTML='<div class="empty-state">Couldn\'t load nutrition data.</div>';return;}
+  const byDate=new Map((metrics||[]).map(r=>[r.metric_date,r]));
+  for(const a of activities||[]){
+    const d=String(a.start_time).slice(0,10);
+    const r=byDate.get(d)||{metric_date:d};
+    r.activity_calories=(r.activity_calories||0)+(Number(a.calories)||0);
+    byDate.set(d,r);
+  }
+  const rows=dates.map(d=>byDate.get(d)||{metric_date:d});
+  const max=Math.max(1,...rows.flatMap(r=>[Number(r.calories_in)||0,Number(r.calories_out)||0,Number(r.activity_calories)||0]));
+  chart.innerHTML=rows.map(r=>{
+    const cin=Number(r.calories_in)||0, cout=Number(r.calories_out)||0, act=Number(r.activity_calories)||0;
+    const out=cout||act;
+    return '<div class="nutrition-day" title="'+safe(fmtDate(r.metric_date))+': '+(cin?Math.round(cin)+" in, ":"")+ (out?Math.round(out)+" out":"no expenditure data")+'"><div class="nutrition-bars"><span class="nutrition-bar in" style="height:'+Math.max(cin?3:0,cin/max*100)+'%"></span><span class="nutrition-bar out" style="height:'+Math.max(out?3:0,out/max*100)+'%"></span></div><div class="nutrition-date">'+safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))+'</div></div>';
+  }).join("");
+  const latest=[...rows].reverse().find(r=>Number(r.calories_in)>0 || Number(r.calories_out)>0 || Number(r.activity_calories)>0);
+  $("nutrition-summary").textContent=latest ? (latest.calories_in ? Math.round(latest.calories_in).toLocaleString()+" in" : "no intake")+" · "+(latest.calories_out ? Math.round(latest.calories_out).toLocaleString()+" expenditure" : latest.activity_calories ? Math.round(latest.activity_calories).toLocaleString()+" activity kcal" : "no expenditure") : "No nutrition data yet.";
+  $("nutrition-macros").textContent=latest && (latest.protein_g||latest.carbs_g||latest.fat_g) ? "P "+Math.round(latest.protein_g||0)+"g · C "+Math.round(latest.carbs_g||0)+"g · F "+Math.round(latest.fat_g||0)+"g" : "Macro data will appear when nutrition data is synced.";
 }
 
 async function loadTrainingLoad() {
@@ -228,6 +271,7 @@ $("close-workout").addEventListener("click",()=> $("workout-dialog").close());
 $("workout-dialog").addEventListener("click",e=>{if(e.target===$("workout-dialog"))$("workout-dialog").close();});
 
 async function loadHabits(){
+
   const grid=$("habit-grid"), dates=last7Dates();
   const {data:habits,error}=await db.from("habits").select("*").eq("archived",false).order("sort_order",{ascending:true});
   if(error){grid.innerHTML=`<div class="empty-state">Couldn't load habits: ${safe(error.message)}</div>`;return;}
@@ -247,14 +291,18 @@ async function loadHabits(){
   }
 }
 async function toggleHabit(habitId,date,isDone){
-  if(isDone) await db.from("habit_logs").delete().match({habit_id:habitId,log_date:date});
-  else await db.from("habit_logs").insert({habit_id:habitId,log_date:date});
-  loadHabits();
+  const result = isDone
+    ? await db.from("habit_logs").delete().match({habit_id:habitId,log_date:date})
+    : await db.from("habit_logs").insert({habit_id:habitId,log_date:date});
+  if(result.error){ alert("Couldn’t save that habit check: "+result.error.message); return; }
+  await loadHabits();
 }
 $("add-habit").addEventListener("click",async()=>{
   const name=prompt("Habit name (e.g. Stretch, Sleep 8h, Protein target)"); if(!name)return;
   const emoji=prompt("Optional emoji for it (leave blank to skip)")||null;
-  await db.from("habits").insert({name,emoji}); loadHabits();
+  const {error}=await db.from("habits").insert({name,emoji});
+  if(error){ alert("Couldn’t add that habit: "+error.message); return; }
+  await loadHabits();
 });
 
 async function loadPlan(){
@@ -274,7 +322,7 @@ $("add-plan").addEventListener("click",async()=>{
 
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
