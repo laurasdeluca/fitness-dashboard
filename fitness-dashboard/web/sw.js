@@ -1,4 +1,4 @@
-const CACHE = "field-log-v6";
+const CACHE = "field-log-v7";
 const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./config.js", "./manifest.json"];
 
 self.addEventListener("install", (e) => {
