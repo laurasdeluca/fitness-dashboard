@@ -1,13 +1,39 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Field Log</title>
-  <meta http-equiv="refresh" content="0; url=/fitness-dashboard/web/">
+  <meta name="theme-color" content="#10161A" />
+  <link rel="manifest" href="/fitness-dashboard/web/manifest.json" />
+  <link rel="apple-touch-icon" href="/fitness-dashboard/web/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/fitness-dashboard/web/style.css" />
 </head>
 <body>
-  <p>Opening <a href="/fitness-dashboard/web/">Field Log</a>…</p>
-  <script>location.replace("/fitness-dashboard/web/");</script>
+  <header class="topbar"><h1>Field Log</h1><span id="last-synced" class="muted"></span></header>
+  <main>
+    <section class="snapshot" aria-label="Training snapshot">
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-load">–</span><span class="snapshot-label">7-day load</span></div>
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-atl">–</span><span class="snapshot-label">acute load</span></div>
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-ctl">–</span><span class="snapshot-label">chronic load</span></div>
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-weight">–</span><span class="snapshot-label">weight</span></div>
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-cal-in">–</span><span class="snapshot-label">calories in</span></div>
+      <div class="snapshot-item"><span class="snapshot-value" id="snap-cal-out">–</span><span class="snapshot-label">calories out</span></div>
+    </section>
+    <section class="panel"><h2>Training load</h2><div id="load-chart" class="load-chart"></div><div id="load-trend" class="load-trend"></div></section>
+    <section class="panel"><h2>Training patterns</h2><div id="training-insights" class="training-insights"></div></section>
+    <section class="panel"><h2>Recovery</h2><div class="recovery-grid"><div><span id="snap-sleep" class="metric-value">–</span><span class="metric-label">last sleep</span></div><div><span id="snap-hrv" class="metric-value">–</span><span class="metric-label">HRV</span></div><div><span id="snap-rhr" class="metric-value">–</span><span class="metric-label">resting HR</span></div></div><div id="recovery-chart" class="recovery-chart"></div></section>
+    <section class="panel"><h2>Nutrition</h2><div id="nutrition-chart" class="nutrition-chart"></div><div id="nutrition-summary" class="load-trend"></div><div id="nutrition-macros" class="empty-state"></div><p class="data-note">Calories in/expenditure can come from MacroFactor when an automatic integration is available; activity kcal is shown as a fallback.</p></section>
+    <section class="panel"><h2>Recent activity</h2><ul id="activity-list" class="activity-list"></ul></section>
+    <section class="panel"><div class="panel-heading"><h2>Habits</h2><button id="add-habit" class="text-button">+ add habit</button></div><div id="habit-grid" class="habit-grid"></div></section>
+    <section class="panel"><div class="panel-heading"><h2>Next 7 days</h2><button id="add-plan" class="text-button">+ add workout</button></div><ul id="plan-list" class="plan-list"></ul></section>
+  </main>
+  <dialog id="workout-dialog"><div class="dialog-header"><h2 id="workout-title">Strength workout</h2><button id="close-workout" class="text-button">close</button></div><div id="workout-meta" class="workout-meta"></div><div id="workout-exercises"></div></dialog>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/fitness-dashboard/web/config.js"></script>
+  <script src="/fitness-dashboard/web/app.js"></script>
 </body>
 </html>
