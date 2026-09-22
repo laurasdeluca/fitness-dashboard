@@ -404,9 +404,56 @@ async function loadTrainingSummary(){
   $("ride-mileage").textContent=miles("Ride")?miles("Ride").toFixed(1):"0";
   $("walk-mileage").textContent=miles("Walk")?miles("Walk").toFixed(1):"0";
 }
+async function loadAdvancedMetrics(){
+  const now=new Date();
+  const start28=new Date(now); start28.setDate(start28.getDate()-27);
+  const start7=new Date(now); start7.setDate(start7.getDate()-6);
+  const start14=new Date(now); start14.setDate(start14.getDate()-13);
+  const iso=d=>d.toISOString();
+  const dayKey=d=>new Date(d).toISOString().slice(0,10);
+  const classify=a=>{const raw=a.raw||{},v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(a.source==="lyfta"||/strength|weight|lifting|gym|resistance/.test(v))return"Strength";if(/run|running/.test(v))return"Run";if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v))return"Ride";if(/walk|walking/.test(v))return"Walk";return null;};
+  const {data:activities}=await db.from("activities").select("source,sport,start_time,duration_s,distance_m,load,raw").gte("start_time",iso(start28)).lte("start_time",iso(now)).order("start_time",{ascending:true});
+  const typed=(activities||[]).map(a=>({...a,type:classify(a)})).filter(a=>a.type);
+  const recent7=typed.filter(a=>new Date(a.start_time)>=start7);
+  const prior7=typed.filter(a=>new Date(a.start_time)>=start14&&new Date(a.start_time)<start7);
+  const hours=arr=>arr.reduce((sum,a)=>sum+(Number(a.duration_s)||0),0)/3600;
+  $("training-hours").textContent=hours(recent7)?hours(recent7).toFixed(1):"0";
+  const strengthN=recent7.filter(a=>a.type==="Strength").length, cardioN=recent7.filter(a=>["Run","Ride","Walk"].includes(a.type)).length;
+  $("strength-cardio").textContent=cardioN?`${strengthN}:${cardioN}`:strengthN?"strength":"–";
+  const byDay={}; for(const a of typed){const d=dayKey(a.start_time);byDay[d]=(byDay[d]||0)+1;}
+  const sessionTimes=typed.map(a=>new Date(a.start_time).getTime()).sort((a,b)=>a-b),gaps=[];
+  for(let i=1;i<sessionTimes.length;i++){const gap=(sessionTimes[i]-sessionTimes[i-1])/3600000;if(gap<=72)gaps.push(gap);}
+  const avgGap=gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:0;
+  $("session-spacing").textContent=avgGap?`${avgGap.toFixed(1)}h`:"–";
+  $("double-sessions").textContent=Object.values(byDay).filter(n=>n>=2).length;
+  const dailyLoad={}; for(const a of typed){const d=dayKey(a.start_time);dailyLoad[d]=(dailyLoad[d]||0)+(Number(a.load)||0);}
+  const loadDays=last7Dates().map(d=>dailyLoad[d]||0),mean=loadDays.reduce((a,b)=>a+b,0)/7,sd=Math.sqrt(loadDays.reduce((a,b)=>a+Math.pow(b-mean,2),0)/7),monotony=sd?mean/sd:0;
+  $("training-monotony").textContent=monotony?monotony.toFixed(2):"–";
+  const {data:metrics}=await db.from("daily_metrics").select("metric_date,sleep_s,hrv,resting_hr,raw").order("metric_date",{ascending:false}).limit(30);
+  const latest=metrics?.find(r=>Number.isFinite(Number(r.raw?.ctl))&&Number.isFinite(Number(r.raw?.atl)));
+  if(latest){const tsb=Number(latest.raw.ctl)-Number(latest.raw.atl);$("tsb").textContent=tsb>0?`+${tsb.toFixed(1)}`:tsb.toFixed(1);}
+  const hrvRows=(metrics||[]).map(r=>Number(r.hrv)).filter(Number.isFinite),rhrRows=(metrics||[]).map(r=>Number(r.resting_hr)).filter(Number.isFinite);
+  const latestHrv=hrvRows[0],latestRhr=rhrRows[0],hrvBase=hrvRows.length?hrvRows.reduce((a,b)=>a+b,0)/hrvRows.length:0,rhrBase=rhrRows.length?rhrRows.reduce((a,b)=>a+b,0)/rhrRows.length:0;
+  if(Number.isFinite(latestHrv)&&hrvBase){const d=(latestHrv-hrvBase)/hrvBase*100;$("hrv-baseline").textContent=`${Math.round(latestHrv)} · ${d>0?"+":""}${Math.round(d)}%`;}
+  if(Number.isFinite(latestRhr)&&rhrBase){const d=latestRhr-rhrBase;$("rhr-baseline").textContent=`${Math.round(latestRhr)} · ${d>0?"+":""}${Math.round(d)}`;}
+  const sleepByDay={}; for(const r of metrics||[]){if(Number(r.sleep_s)>0&&sleepByDay[r.metric_date]===undefined)sleepByDay[r.metric_date]=Number(r.sleep_s);}
+  const trainingDays=new Set(recent7.map(a=>dayKey(a.start_time))),trainingSleep=[],restSleep=[];
+  for(const d of last7Dates()){const v=sleepByDay[d];if(!Number.isFinite(v))continue;(trainingDays.has(d)?trainingSleep:restSleep).push(v);}
+  const avgSec=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0,fmtHours=s=>s?fmtDuration(Math.round(s)):"–";
+  $("sleep-vs-load").textContent=trainingSleep.length||restSleep.length?`train ${fmtHours(avgSec(trainingSleep))} · rest ${fmtHours(avgSec(restSleep))}`:"–";
+  const runCur=recent7.filter(a=>a.type==="Run").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344,runPrev=prior7.filter(a=>a.type==="Run").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344;
+  const rideCur=recent7.filter(a=>a.type==="Ride").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344,ridePrev=prior7.filter(a=>a.type==="Ride").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344;
+  const strengthCur=recent7.filter(a=>a.type==="Strength").length,strengthPrev=prior7.filter(a=>a.type==="Strength").length;
+  const pct=(cur,prev)=>prev?`${cur-prev>0?"+":""}${Math.round((cur-prev)/prev*100)}%`:cur?"new":"–";
+  $("volume-trends").textContent=`Run ${pct(runCur,runPrev)} · Ride ${pct(rideCur,ridePrev)} · Strength ${pct(strengthCur,strengthPrev)}`;
+  const {data:plans}=await db.from("planned_workouts").select("plan_date,sport,title").gte("plan_date",dayKey(start28)).lt("plan_date",dayKey(new Date(now.getTime()+86400000)));
+  const realPlans=(plans||[]).filter(p=>String(p.sport||"").toLowerCase()!=="rest"); let matched=0; const used=new Set();
+  for(const p of realPlans){const ps=String(p.sport||"").toLowerCase();const idx=typed.findIndex((a,i)=>{if(used.has(String(i))||dayKey(a.start_time)!==p.plan_date)return false;const as=a.type.toLowerCase();return !ps||as===ps;});if(idx>=0){used.add(String(idx));matched++;}}
+  $("plan-adherence").textContent=realPlans.length?`${matched}/${realPlans.length} · ${Math.round(matched/realPlans.length*100)}%`:"–";
+}
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadSteps(),loadTrainingSummary(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadTrainingInsights(),loadSteps(),loadTrainingSummary(),loadAdvancedMetrics(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
