@@ -1,68 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Field Log</title>
-  <meta name="theme-color" content="#10161A" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta http-equiv="refresh" content="0; url=/fitness-dashboard/web/">
 </head>
 <body>
-  <header class="topbar">
-    <h1>Field Log</h1>
-    <span id="last-synced" class="muted"></span>
-  </header>
-
-  <main>
-    <!-- Today snapshot: the one bold element on the page -->
-    <section class="snapshot" aria-label="Today's snapshot">
-      <div class="snapshot-item">
-        <span class="snapshot-value" id="snap-load">–</span>
-        <span class="snapshot-label">7-day load</span>
-      </div>
-      <div class="snapshot-item">
-        <span class="snapshot-value" id="snap-sleep">–</span>
-        <span class="snapshot-label">last sleep</span>
-      </div>
-      <div class="snapshot-item">
-        <span class="snapshot-value" id="snap-hrv">–</span>
-        <span class="snapshot-label">HRV</span>
-      </div>
-      <div class="snapshot-item">
-        <span class="snapshot-value" id="snap-rhr">–</span>
-        <span class="snapshot-label">resting HR</span>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Recent activity</h2>
-      <ul id="activity-list" class="activity-list"></ul>
-    </section>
-
-    <section class="panel">
-      <div class="panel-heading">
-        <h2>Habits</h2>
-        <button id="add-habit" class="text-button">+ add habit</button>
-      </div>
-      <div id="habit-grid" class="habit-grid"></div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-heading">
-        <h2>Next 7 days</h2>
-        <button id="add-plan" class="text-button">+ add workout</button>
-      </div>
-      <ul id="plan-list" class="plan-list"></ul>
-    </section>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <p>Opening <a href="/fitness-dashboard/web/">Field Log</a>…</p>
+  <script>location.replace("/fitness-dashboard/web/");</script>
 </body>
 </html>
