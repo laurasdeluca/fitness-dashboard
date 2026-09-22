@@ -100,26 +100,27 @@ async function loadRecoveryTrend() {
   $("recovery-hrv").textContent=hrv ? Math.round(hrv) : "not synced";
   $("recovery-rhr").textContent=rhr ? Math.round(rhr) : "not synced";
 }
-async function loadTrainingMix() {
-  const since=new Date(Date.now()-56*86400000).toISOString();
-  const {data,error}=await db.from("activities").select("sport,name,start_time,duration_s,raw,source").gte("start_time",since).order("start_time",{ascending:true});
-  const el=$("training-mix");
-  if(error){el.innerHTML='<div class="empty-state">Couldn\\'t load training mix.</div>';return;}
-  const classify=(a)=>{
-    const raw=a.raw||{};
-    const v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
-    if(a.source==="lyfta" || /strength|weight|lifting|gym|resistance/.test(v)) return "Strength";
-    if(/run|running/.test(v)) return "Run";
-    if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v)) return "Ride";
-    if(/walk|walking/.test(v)) return "Walk";
-    return null;
-  };
-  const weeks=[]; const today=new Date(); const monday=new Date(today);
-  const day=(monday.getDay()+6)%7; monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-day);
-  for(let w=7;w>=0;w--){const start=new Date(monday);start.setDate(start.getDate()-w*7);const end=new Date(start);end.setDate(end.getDate()+7);weeks.push({start,end,Strength:0,Run:0,Ride:0,Walk:0,duration:0});}
-  for(const a of data||[]){const type=classify(a);if(!type)continue;const t=new Date(a.start_time);const w=weeks.find(x=>t>=x.start&&t<x.end);if(!w)continue;w[type]++;w.duration+=Number(a.duration_s)||0;}
-  const max=Math.max(1,...weeks.flatMap(w=>[w.Strength,w.Run,w.Ride,w.Walk]));
-  el.innerHTML='<div class="mix-legend"><span>STR '+weeks.at(-1).Strength+'</span><span>RUN '+weeks.at(-1).Run+'</span><span>RIDE '+weeks.at(-1).Ride+'</span><span>WALK '+weeks.at(-1).Walk+'</span></div><div class="mix-chart">'+weeks.map(w=>{const label=w.start.toLocaleDateString(undefined,{month:"numeric",day:"numeric"});const total=w.Strength+w.Run+w.Ride+w.Walk;return '<div class="mix-week" title="'+safe(label)+': '+total+' sessions"><div class="mix-stack"><span class="mix-segment strength" style="height:'+(w.Strength/max*100)+'%"></span><span class="mix-segment run" style="height:'+(w.Run/max*100)+'%"></span><span class="mix-segment ride" style="height:'+(w.Ride/max*100)+'%"></span><span class="mix-segment walk" style="height:'+(w.Walk/max*100)+'%"></span></div><span class="mix-label">'+safe(label)+'</span><span class="mix-count">'+total+'</span></div>;}).join("")+'</div><div class="mix-current">'+weeks.at(-1).Strength+' lifting · '+weeks.at(-1).Run+' runs · '+weeks.at(-1).Ride+' rides · '+weeks.at(-1).Walk+' walks · '+fmtDuration(weeks.at(-1).duration)+' total</div>';
+async function loadTrainingInsights() {
+  const since=new Date(Date.now()-84*86400000).toISOString();
+  const {data,error}=await db.from("activities").select("sport,name,start_time,duration_s,distance_m,load,raw,source").gte("start_time",since).order("start_time",{ascending:true});
+  const el=$("training-insights");
+  if(error){el.innerHTML='<div class="empty-state">Couldn\\'t load training insights.</div>';return;}
+  const classify=a=>{const raw=a.raw||{},v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");if(a.source==="lyfta"||/strength|weight|lifting|gym|resistance/.test(v))return"Strength";if(/run|running/.test(v))return"Run";if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v))return"Ride";if(/walk|walking/.test(v))return"Walk";return null;};
+  const rows=(data||[]).map(a=>({...a,type:classify(a)})).filter(a=>a.type);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const monday=new Date(today); monday.setDate(monday.getDate()-((monday.getDay()+6)%7));
+  const weeks=[];
+  for(let i=11;i>=0;i--){const s=new Date(monday);s.setDate(s.getDate()-i*7);const e=new Date(s);e.setDate(e.getDate()+7);weeks.push({s,e,Strength:0,Run:0,Ride:0,Walk:0,minutes:0,distance:0,load:0});}
+  for(const a of rows){const t=new Date(a.start_time),w=weeks.find(x=>t>=x.s&&t<x.e);if(!w)continue;w[a.type]++;w.minutes+=(Number(a.duration_s)||0)/60;w.distance+=Number(a.distance_m)||0;w.load+=Number(a.load)||0;}
+  const maxTotal=Math.max(1,...weeks.map(w=>w.Strength+w.Run+w.Ride+w.Walk));
+  const current=weeks.at(-1),prev=weeks.at(-2);
+  const pct=(a,b)=>b?Math.round((a-b)/b*100):null;
+  const heat=Array.from({length:7},(_,d)=>{const cells=[];for(let w=0;w<12;w++){const s=new Date(weeks[w].s);s.setDate(s.getDate()+d);const e=new Date(s);e.setDate(e.getDate()+1);const n=rows.filter(a=>{const t=new Date(a.start_time);return t>=s&&t<e;}).length;cells.push(n);}return cells;});
+  const maxDay=Math.max(1,...heat.flat());
+  const volumeBars=weeks.map(w=>{const total=w.Strength+w.Run+w.Ride+w.Walk;const label=w.s.toLocaleDateString(undefined,{month:"numeric",day:"numeric"});return '<div class="ins-week" title="'+safe(label)+': '+total+' sessions"><div class="ins-bar"><span class="ins-strength" style="height:'+(w.Strength/maxTotal*100)+'%"></span><span class="ins-run" style="height:'+(w.Run/maxTotal*100)+'%"></span><span class="ins-ride" style="height:'+(w.Ride/maxTotal*100)+'%"></span><span class="ins-walk" style="height:'+(w.Walk/maxTotal*100)+'%"></span></div><small>'+safe(label)+'</small></div>';}).join("");
+  const heatHtml=heat.map((weekdays,d)=>'<div class="heat-row">'+weekdays.map((n,w)=>'<span class="heat-cell" style="opacity:'+(n?(.25+.75*n/maxDay):.12)+'" title="'+safe(weeks[w].s.toLocaleDateString(undefined,{month:"short",day:"numeric"}))+' · '+n+' session'+(n===1?'':'s')+'">'+(n||"")+'</span>').join("")+'</div>').join("");
+  const dist=current.distance>0 ? (current.distance/1609.344).toFixed(1)+" mi logged" : "";
+  el.innerHTML='<div class="ins-legend"><span>STR</span><span>RUN</span><span>RIDE</span><span>WALK</span></div><div class="ins-volume">'+volumeBars+'</div><div class="ins-statline"><strong>'+current.Strength+'</strong> lifting · <strong>'+current.Run+'</strong> runs · <strong>'+current.Ride+'</strong> rides · <strong>'+current.Walk+'</strong> walks · '+Math.round(current.minutes/60)+'h total'+(dist?' · '+dist:"")+'</div><div class="ins-compare">vs last week: '+(pct(current.Strength,prev.Strength)===null?'':pct(current.Strength,prev.Strength)+'% lifting, ') +(pct(current.Run,prev.Run)===null?'':pct(current.Run,prev.Run)+'% running, ') +(pct(current.Ride,prev.Ride)===null?'':pct(current.Ride,prev.Ride)+'% riding')+'</div><div class="heat-title">Training density · 12 weeks</div><div class="heatmap">'+heatHtml+'</div>';
 }
 
 async function loadNutrition() {
