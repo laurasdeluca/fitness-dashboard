@@ -75,17 +75,31 @@ async function loadSnapshot() {
 async function loadRecoveryTrend() {
   const { data, error } = await db.from("daily_metrics")
     .select("metric_date,sleep_s,hrv,resting_hr,raw")
-    .order("metric_date",{ascending:false}).limit(7);
+    .order("metric_date",{ascending:false}).limit(30);
   const chart=$("recovery-chart");
   if(error || !data?.length){ chart.innerHTML='<div class="empty-state">No recovery data yet.</div>'; return; }
-  const rows=[...data].reverse();
-  const maxSleep=Math.max(1,...rows.map(r=>Number(r.sleep_s)||0));
-  chart.innerHTML=rows.map(r=>{
-    const sleep=Number(r.sleep_s)||0, hrv=Number(r.hrv)||0, rhr=Number(r.resting_hr)||0;
-    return '<div class="recovery-day"><div class="recovery-bars"><span class="recovery-bar sleep" style="height:'+Math.max(3,sleep/maxSleep*100)+'%" title="'+safe(fmtDuration(sleep))+' sleep"></span></div><div class="recovery-meta"><span>'+safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))+'</span><span>HRV '+(hrv?Math.round(hrv):"–")+'</span><span>RHR '+(rhr?Math.round(rhr):"–")+'</span></div></div>';
-  }).join("");
-}
 
+  const latestSleep=data.find(r=>Number(r.sleep_s)>0);
+  const latestHrv=data.find(r=>Number(r.hrv)>0);
+  const latestRhr=data.find(r=>Number(r.resting_hr)>0);
+
+  const sleep=latestSleep ? Number(latestSleep.sleep_s) : 0;
+  const hrv=latestHrv ? Number(latestHrv.hrv) : 0;
+  const rhr=latestRhr ? Number(latestRhr.resting_hr) : 0;
+
+  const rows=[...data].filter(r=>Number(r.sleep_s)>0).slice(0,7).reverse();
+  const maxSleep=Math.max(1,...rows.map(r=>Number(r.sleep_s)||0));
+  chart.innerHTML=rows.length ? rows.map(r=>{
+    const daySleep=Number(r.sleep_s)||0;
+    const dayHrv=Number(r.hrv)||0;
+    const dayRhr=Number(r.resting_hr)||0;
+    return '<div class="recovery-day"><div class="recovery-bars"><span class="recovery-bar sleep" style="height:'+Math.max(3,daySleep/maxSleep*100)+'%" title="'+safe(fmtDuration(daySleep))+' sleep"></span></div><div class="recovery-meta"><span>'+safe(new Date(r.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"numeric",day:"numeric"}))+'</span><span>HRV '+(dayHrv?Math.round(dayHrv):"–")+'</span><span>RHR '+(dayRhr?Math.round(dayRhr):"–")+'</span></div></div>';
+  }).join("") : '<div class="empty-state">No sleep data yet.</div>';
+
+  $("recovery-sleep").textContent=sleep ? fmtDuration(sleep) : "not synced";
+  $("recovery-hrv").textContent=hrv ? Math.round(hrv) : "not synced";
+  $("recovery-rhr").textContent=rhr ? Math.round(rhr) : "not synced";
+}
 async function loadNutrition() {
   const dates=last7Dates();
   const {data:metrics,error}=await db.from("daily_metrics").select("metric_date,calories_in,calories_out,protein_g,carbs_g,fat_g").gte("metric_date",dates[0]).order("metric_date",{ascending:true});
