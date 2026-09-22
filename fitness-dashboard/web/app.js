@@ -443,7 +443,7 @@ async function loadAdvancedMetrics(){
   $("sleep-vs-load").textContent=trainingSleep.length||restSleep.length?`train ${fmtHours(avgSec(trainingSleep))} · rest ${fmtHours(avgSec(restSleep))}`:"–";
   const runCur=recent7.filter(a=>a.type==="Run").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344,runPrev=prior7.filter(a=>a.type==="Run").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344;
   const rideCur=recent7.filter(a=>a.type==="Ride").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344,ridePrev=prior7.filter(a=>a.type==="Ride").reduce((s,a)=>s+(Number(a.distance_m)||0),0)/1609.344;
-  const strengthCur=recent7.filter(a=>a.type==="Strength").length,strengthPrev=prior7.filter(a=>a.type==="Strength").length;
+  const strengthCur=recent7.filter(a=>a.type==="Strength").reduce((s,a)=>s+(Number(a.load)||0),0),strengthPrev=prior7.filter(a=>a.type==="Strength").reduce((s,a)=>s+(Number(a.load)||0),0);
   const pct=(cur,prev)=>prev?`${cur-prev>0?"+":""}${Math.round((cur-prev)/prev*100)}%`:cur?"new":"–";
   $("volume-trends").textContent=`Run ${pct(runCur,runPrev)} · Ride ${pct(rideCur,ridePrev)} · Strength ${pct(strengthCur,strengthPrev)}`;
   const {data:plans}=await db.from("planned_workouts").select("plan_date,sport,title").gte("plan_date",dayKey(start28)).lt("plan_date",dayKey(new Date(now.getTime()+86400000)));
