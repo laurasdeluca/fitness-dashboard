@@ -50,9 +50,9 @@ async function loadSnapshot() {
   const rawWeight = m.raw?.weight;
   const weightLb = lbFromKg(rawWeight);
   $("snap-weight").textContent = weightLb != null ? fmtWeight(weightLb) : "–";
-  $("snap-sleep").textContent = m.sleep_s ? fmtDuration(m.sleep_s) : "–";
-  $("snap-hrv").textContent = m.hrv != null ? Math.round(m.hrv) : "–";
-  $("snap-rhr").textContent = m.resting_hr != null ? Math.round(m.resting_hr) : "–";
+  $("snap-sleep").textContent = m.sleep_s ? fmtDuration(m.sleep_s) : "not synced";
+  $("snap-hrv").textContent = m.hrv != null ? Math.round(m.hrv) : "not synced";
+  $("snap-rhr").textContent = m.resting_hr != null ? Math.round(m.resting_hr) : "not synced";
 }
 
 async function loadTrainingLoad() {
@@ -112,7 +112,7 @@ async function loadActivities() {
   const { data, error } = await db.from("activities")
     .select("*")
     .order("start_time", { ascending: false })
-    .limit(15);
+    .limit(40);
 
   const list = $("activity-list");
   list.innerHTML = "";
@@ -164,7 +164,11 @@ async function loadActivities() {
     return sport || "Activity";
   };
 
-  for (const a of data) {
+  const visible = (data || [])
+    .filter(a => a.source !== "intervals_icu")
+    .slice(0, 15);
+
+  for (const a of visible) {
     const li = document.createElement("li");
     const isLyfta = a.source === "lyfta";
     const raw = a.raw || {};
@@ -182,7 +186,7 @@ async function loadActivities() {
       if (Number.isFinite(duration) && duration > 0) detail += detail ? ` · ${fmtDuration(duration)}` : fmtDuration(duration);
     }
 
-    const tags = [...new Set([sportLabel, sourceLabel].filter(Boolean))];
+    const tags = [...new Set([sportLabel].filter(Boolean))];
 
     li.className = isLyfta ? "clickable" : "";
     li.innerHTML = `
