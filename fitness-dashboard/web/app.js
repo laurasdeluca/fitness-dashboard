@@ -100,6 +100,28 @@ async function loadRecoveryTrend() {
   $("recovery-hrv").textContent=hrv ? Math.round(hrv) : "not synced";
   $("recovery-rhr").textContent=rhr ? Math.round(rhr) : "not synced";
 }
+async function loadTrainingMix() {
+  const since=new Date(Date.now()-56*86400000).toISOString();
+  const {data,error}=await db.from("activities").select("sport,name,start_time,duration_s,raw,source").gte("start_time",since).order("start_time",{ascending:true});
+  const el=$("training-mix");
+  if(error){el.innerHTML='<div class="empty-state">Couldn\\'t load training mix.</div>';return;}
+  const classify=(a)=>{
+    const raw=a.raw||{};
+    const v=String(a.sport||raw.type||raw.sport_type||raw.activity_type||raw.sport||a.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    if(a.source==="lyfta" || /strength|weight|lifting|gym|resistance/.test(v)) return "Strength";
+    if(/run|running/.test(v)) return "Run";
+    if(/ride|cycling|bike|biking|virtualride|indoorcycling/.test(v)) return "Ride";
+    if(/walk|walking/.test(v)) return "Walk";
+    return null;
+  };
+  const weeks=[]; const today=new Date(); const monday=new Date(today);
+  const day=(monday.getDay()+6)%7; monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-day);
+  for(let w=7;w>=0;w--){const start=new Date(monday);start.setDate(start.getDate()-w*7);const end=new Date(start);end.setDate(end.getDate()+7);weeks.push({start,end,Strength:0,Run:0,Ride:0,Walk:0,duration:0});}
+  for(const a of data||[]){const type=classify(a);if(!type)continue;const t=new Date(a.start_time);const w=weeks.find(x=>t>=x.start&&t<x.end);if(!w)continue;w[type]++;w.duration+=Number(a.duration_s)||0;}
+  const max=Math.max(1,...weeks.flatMap(w=>[w.Strength,w.Run,w.Ride,w.Walk]));
+  el.innerHTML='<div class="mix-legend"><span>STR '+weeks.at(-1).Strength+'</span><span>RUN '+weeks.at(-1).Run+'</span><span>RIDE '+weeks.at(-1).Ride+'</span><span>WALK '+weeks.at(-1).Walk+'</span></div><div class="mix-chart">'+weeks.map(w=>{const label=w.start.toLocaleDateString(undefined,{month:"numeric",day:"numeric"});const total=w.Strength+w.Run+w.Ride+w.Walk;return '<div class="mix-week" title="'+safe(label)+': '+total+' sessions"><div class="mix-stack"><span class="mix-segment strength" style="height:'+(w.Strength/max*100)+'%"></span><span class="mix-segment run" style="height:'+(w.Run/max*100)+'%"></span><span class="mix-segment ride" style="height:'+(w.Ride/max*100)+'%"></span><span class="mix-segment walk" style="height:'+(w.Walk/max*100)+'%"></span></div><span class="mix-label">'+safe(label)+'</span><span class="mix-count">'+total+'</span></div>;}).join("")+'</div><div class="mix-current">'+weeks.at(-1).Strength+' lifting · '+weeks.at(-1).Run+' runs · '+weeks.at(-1).Ride+' rides · '+weeks.at(-1).Walk+' walks · '+fmtDuration(weeks.at(-1).duration)+' total</div>';
+}
+
 async function loadNutrition() {
   const dates=last7Dates();
   const {data:metrics,error}=await db.from("daily_metrics").select("metric_date,calories_in,calories_out,protein_g,carbs_g,fat_g").gte("metric_date",dates[0]).order("metric_date",{ascending:true});
@@ -337,7 +359,7 @@ $("add-plan").addEventListener("click",async()=>{
 
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadTrainingMix(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
