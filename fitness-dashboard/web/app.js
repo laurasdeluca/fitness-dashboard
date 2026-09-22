@@ -360,7 +360,7 @@ $("add-plan").addEventListener("click",async()=>{
 
 async function init(){
   $("last-synced").textContent=`updated ${new Date().toLocaleTimeString()}`;
-  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadTrainingMix(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
+  await Promise.all([loadSnapshot(),loadTrainingLoad(),loadRecoveryTrend(),loadTrainingInsights(),loadNutrition(),loadActivities(),loadHabits(),loadPlan()]);
 }
 init();
 setInterval(init,5*60*1000);
