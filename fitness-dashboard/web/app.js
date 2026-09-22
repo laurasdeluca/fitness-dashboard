@@ -12,14 +12,6 @@ function fmtDuration(seconds) {
   const m = Math.round((seconds % 3600) / 60);
   return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
 }
-function fmtWeight(value) {
-  if (value === null || value === undefined || value === "") return "–";
-  return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })} lb`;
-}
-function lbFromKg(value) {
-  if (value === null || value === undefined) return null;
-  return Number(value) * 2.2046226218;
-}
 function safe(v) {
   return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
@@ -37,22 +29,31 @@ function next7Dates() {
 async function loadSnapshot() {
   const since = new Date(Date.now() - 7 * 86400000).toISOString();
   const { data: activities } = await db.from("activities").select("load,start_time").gte("start_time", since);
-  const total = (activities || []).reduce((sum,a) => sum + (Number(a.load) || 0), 0);
+  const daily = {};
+  for (const a of activities || []) {
+    const day = new Date(a.start_time).toISOString().slice(0,10);
+    daily[day] = (daily[day] || 0) + (Number(a.load) || 0);
+  }
+  const days = last7Dates();
+  const dailyLoads = days.map(d => daily[d] || 0);
+  const total = dailyLoads.reduce((sum,v) => sum + v, 0);
   $("snap-load").textContent = total ? Math.round(total).toLocaleString() : "–";
+
+  const mean = dailyLoads.reduce((sum,v) => sum + v, 0) / 7;
+  const variance = dailyLoads.reduce((sum,v) => sum + Math.pow(v - mean, 2), 0) / 7;
+  const sd = Math.sqrt(variance);
+  const monotony = sd > 0 ? mean / sd : 0;
+  const strain = total * monotony;
+  $("snap-strain").textContent = strain ? Math.round(strain).toLocaleString() : "–";
 
   const { data: metrics } = await db.from("daily_metrics")
     .select("metric_date,sleep_s,hrv,resting_hr,readiness,raw")
     .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
 
-  // Training load/weight should use the newest wellness row.
   const m = metrics[0];
   $("snap-atl").textContent = m.raw?.atl != null ? Number(m.raw.atl).toFixed(1) : "–";
   $("snap-ctl").textContent = m.raw?.ctl != null ? Number(m.raw.ctl).toFixed(1) : "–";
-  const rawWeight = m.raw?.weight;
-  const weightLb = lbFromKg(rawWeight);
-  $("snap-weight").textContent = weightLb != null ? fmtWeight(weightLb) : "–";
-
   // Garmin recovery data can arrive a day or two behind the wellness row.
   // Use the most recent actual value for each metric instead of today's empty row.
   const latestWith = (field) => metrics.find(row =>
@@ -276,7 +277,7 @@ async function loadActivities() {
 
     let detail = "";
     if (isLyfta && a.load != null) {
-      detail = fmtWeight(a.load);
+      detail = `${Math.round(Number(a.load)).toLocaleString()} lb`;
     } else {
       const distance = Number(a.distance_m);
       if (Number.isFinite(distance) && distance > 0) detail = `${(distance / 1609.344).toFixed(1)} mi`;
@@ -302,7 +303,7 @@ async function loadActivities() {
 function openLyfta(a){
   const d=$("workout-dialog"), raw=a.raw||{}, exercises=raw.exercises||[];
   $("workout-title").textContent=a.name||"Strength workout";
-  $("workout-meta").innerHTML=`<span>${safe(fmtDate(a.start_time))}</span><span>${a.load!=null?safe(fmtWeight(a.load)):""} total volume</span><span>${raw.body_weight!=null?safe(fmtWeight(raw.body_weight)):""} body weight</span><span>${exercises.length} exercises</span>`;
+  $("workout-meta").innerHTML=`<span>${safe(fmtDate(a.start_time))}</span><span>${a.load!=null?Math.round(Number(a.load)).toLocaleString()+" lb":""} total volume</span><span>${raw.body_weight!=null?Math.round(Number(raw.body_weight)).toLocaleString()+" lb":""} body weight</span><span>${exercises.length} exercises</span>`;
   $("workout-exercises").innerHTML=exercises.length ? exercises.map(ex=>{
     const sets=ex.sets||[];
     return `<div class="exercise"><div class="exercise-name">${safe(ex.excercise_name||ex.exercise_name||"Exercise")}</div><div class="sets">${sets.map((s,i)=>`<span>Set ${i+1}: ${s.weight?safe(s.weight)+" lb × ":""}${s.reps?safe(s.reps)+" reps":s.duration?safe(s.duration):"—"}${s.rir!==""&&s.rir!=null?" · RIR "+safe(s.rir):""}</span>`).join("")}</div></div>`;
