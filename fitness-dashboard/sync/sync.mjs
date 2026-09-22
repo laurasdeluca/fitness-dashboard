@@ -235,9 +235,27 @@ async function syncIntervalsIcu() {
         w.day ||
         null,
 
-      // These remain null because the current
-      // intervals.icu response is returning null
-      // for sleepSecs.
+      calories_in:
+        w.kcalConsumed ??
+        null,
+
+      protein_g:
+        w.protein ??
+        null,
+
+      carbs_g:
+        w.carbohydrates ??
+        null,
+
+      fat_g:
+        w.fatTotal ??
+        null,
+
+      weight_kg:
+        w.weight ??
+        null,
+
+      // Sleep data can arrive late from Garmin.
       sleep_s:
         w.sleepSecs ??
         w.sleep_seconds ??
