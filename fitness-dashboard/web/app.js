@@ -47,7 +47,7 @@ async function loadSnapshot() {
   $("snap-strain").textContent = strain ? Math.round(strain).toLocaleString() : "–";
 
   const { data: metrics } = await db.from("daily_metrics")
-    .select("metric_date,sleep_s,hrv,resting_hr,readiness,raw")
+    .select("metric_date,sleep_s,hrv,resting_hr,readiness,raw,inserted_at")
     .order("metric_date", {ascending:false}).limit(30);
   if (!metrics?.length) return;
 
@@ -64,9 +64,13 @@ async function loadSnapshot() {
   const hrv = latestWith("hrv");
   const rhr = latestWith("resting_hr");
 
+  const metricDate = row => row?.metric_date ? new Date(row.metric_date+"T12:00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}) : "–";
   $("snap-sleep").textContent = sleep ? fmtDuration(sleep.sleep_s) : "not synced";
   $("snap-hrv").textContent = hrv ? Math.round(hrv.hrv) : "not synced";
   $("snap-rhr").textContent = rhr ? Math.round(rhr.resting_hr) : "not synced";
+  $("snap-sleep-label").textContent = sleep ? `last sleep · ${metricDate(sleep)}` : "last sleep";
+  $("snap-hrv-label").textContent = hrv ? `HRV · ${metricDate(hrv)}` : "HRV";
+  $("snap-rhr-label").textContent = rhr ? `resting HR · ${metricDate(rhr)}` : "resting HR";
 }
 
 async function loadSteps(){
