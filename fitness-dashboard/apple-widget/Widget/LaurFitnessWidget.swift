@@ -1,3 +1,4 @@
+import Foundation
 import WidgetKit
 import SwiftUI
 
@@ -60,7 +61,9 @@ struct FitnessWidgetView: View {
             }
 
             HStack(spacing: 12) {
-                metric("SLEEP", entry.snapshot.sleep)
+                metric("SLEEP", entry.snapshot.sleep.map { value in
+                    entry.snapshot.sleepDate.map { "(value) · ($0)" } ?? value
+                })
                 metric("RHR", entry.snapshot.restingHR.map(String.init))
             }
 
